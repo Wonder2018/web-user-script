@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         52pojie主题筛选工具
 // @namespace    http://tampermonkey.net/
-// @version      0.0.1-b20241118
-// @description  try to take over the world!
+// @version      0.0.1-b20241121
+// @description  52pojie主题页面增强，可以对主题列表进行筛选和排序
 // @author       wonder2018
 // @license      CC-BY-4.0 license
 // @match        https://www.52pojie.cn/forum*
@@ -19,6 +19,7 @@
   // #region 初始化
   const tableSelector = `div#threadlist table`
   const appendSelector = `ul#thread_types`
+  const dftOrderAttrName = 'pj-dft-order'
   const sideBtnWrapId = `filterBox`
   const sideBtnWrapSelector = `ul#${sideBtnWrapId}`
   const allHideTypes = new Set()
@@ -31,6 +32,7 @@
     { switchName: '移除回复多于x', switchKey: 'useFilterByReplyGt', init: filterByReplyGt, menuId: null },
     { switchName: '移除CB少于x', switchKey: 'useFilterByCBLt', init: filterByCBLt, menuId: null },
     { switchName: '正则过滤', switchKey: 'useFilterByRegExp', init: filterByRegExp, menuId: null },
+    { switchName: '按创建时间排序', switchKey: 'useSortByCreateTime', init: sortByCreateTime, menuId: null },
   ]
   const dftPJOpts = availableTools.reduce((p, i) => ((p[i.switchKey] = true), p), { showPos: 2 })
   dftPJOpts.useFilterByRegExp = false
@@ -271,6 +273,53 @@
     }
   }
 
+  /** 论坛目前默认排序方式是按照最新回复排序，为了兼容后续可能的改动，这里还是先保存默认排序，之后再按此顺序恢复 */
+  /** 保存原始顺序 @param {HTMLTableSectionElement[]} lines */
+  function setDftOrder(lines) {
+    let maxOrder = Math.max(-Infinity, 1, ...lines.map(i => i.getAttribute(dftOrderAttrName) || 0))
+    // 保存原始顺序
+    lines.forEach(i => {
+      // 已经记录了默认顺序的帖子跳过
+      if (i.hasAttribute(dftOrderAttrName)) return
+      i.setAttribute(dftOrderAttrName, maxOrder++)
+    })
+  }
+  /** 还原帖子排序 */
+  function recoverOrder() {
+    /** @type {HTMLTableSectionElement[]} */
+    const lines = [...document.querySelectorAll(`${tableSelector}>tbody[id*=normalthread_]`)]
+    // 为新增的没有参与排序的行添加顺序以便排序
+    setDftOrder(lines)
+    const sorted = lines.sort((a, b) => parseInt(a.getAttribute(dftOrderAttrName)) - parseInt(b.getAttribute(dftOrderAttrName)))
+    sortLines(sorted)
+  }
+  /** 按照顺序排列帖子 @param {HTMLTableSectionElement[]} lines */
+  function sortLines(lines) {
+    if (!Array.isArray(lines) || !lines.length) return
+    const container = lines[0].parentNode
+    if (!container) return console.warn('列表没有祖先节点，不进行操作！')
+
+    container.append(...lines)
+  }
+
+  /** 获取创建时间 @param {HTMLTableSectionElement} line */
+  function readCreateTime(line) {
+    let text = line.querySelector('.by')
+    if (!text || typeof text.innerText != 'string' || !text.innerText.trim()) return 0
+    let part = text.innerText
+      .replaceAll('\n', '')
+      .trim()
+      .match(/^.*?(\d{4})-(\d+)-(\d+)\s*(\d+):(\d+)$/)
+    // 获取时间失败，排在最后面
+    if (!part) return 0
+    // 将 part 转为标准数组，并且把获取到的值转为数字
+    part = new Array(5).fill(0).map((_, i) => parseInt(part[i + 1]))
+    // 获取date实例时月份要减1
+    part[1] = part[1] - 1
+    // 对 Invalid Date 执行 getTime 会得到 NaN
+    return new Date(...part).getTime() || 0
+  }
+
   // #endregion utils
 
   // #region 脚本功能
@@ -351,6 +400,19 @@
       })
     })
     createBtn('还原正则过滤', showBtnColor).addEventListener('click', () => recoverByType(hideType))
+  }
+
+  /** 按创建时间排序 */
+  function sortByCreateTime() {
+    const sortByCreateTime = createBtn(`按创建时间排序`, filterBtnColor)
+    sortByCreateTime.addEventListener('click', () => {
+      /** @type {HTMLTableSectionElement[]} */
+      const lines = [...document.querySelectorAll(`${tableSelector}>tbody[id*=normalthread_]`)]
+      setDftOrder(lines)
+      const sorted = lines.sort((a, b) => readCreateTime(b) - readCreateTime(a))
+      sortLines(sorted)
+    })
+    createBtn('还原排序', showBtnColor).addEventListener('click', recoverOrder)
   }
 
   // #endregion 脚本功能

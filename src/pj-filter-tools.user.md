@@ -20,9 +20,9 @@
 
 ## 鸣谢
 
-1. [夜泉](https://www.52pojie.cn/home.php?mod=space&uid=580490) 报告脚本使用问题
-2. [三滑稽甲苯](https://www.52pojie.cn/home.php?mod=space&uid=1330976) 提供正则表达式过滤思路
-3. [木头人丶123](https://www.52pojie.cn/home.php?mod=space&uid=2121966) 提供按钮固定在屏幕右侧的相关代码
+- [夜泉](https://www.52pojie.cn/home.php?mod=space&uid=580490) 报告脚本使用问题
+- [三滑稽甲苯](https://www.52pojie.cn/home.php?mod=space&uid=1330976) 提供正则表达式过滤思路
+- [木头人丶 123](https://www.52pojie.cn/home.php?mod=space&uid=2121966) 提供按钮固定在屏幕右侧的相关代码
 
 > 排名不分先后
 
